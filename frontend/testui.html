@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Dongdong IM测试UI</title>
+    <style>
+        .container {width: 800px; margin: 20px auto;}
+        .tab {margin-bottom: 10px;}
+        .tab button {padding: 8px 16px; cursor: pointer;}
+        .tab-content {display: none; padding: 10px; border: 1px solid #ccc;}
+        .active {display: block;}
+        #chat-box {height: 300px; overflow-y: auto; border: 1px solid #eee; margin: 10px 0; padding: 10px;}
+        input {margin: 5px 0; padding: 8px; width: 200px;}
+        button {padding: 8px 16px; margin: 5px 0;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 标签页：注册/登录/加好友/聊天 -->
+        <div class="tab">
+            <button onclick="openTab('register')">注册</button>
+            <button onclick="openTab('login')">登录</button>
+            <button onclick="openTab('add-friend')">加好友</button>
+            <button onclick="openTab('chat')">聊天</button>
+        </div>
+
+        <!-- 注册面板 -->
+        <div id="register" class="tab-content active">
+            <h3>注册</h3>
+            用户名：<input type="text" id="reg-username" placeholder="输入用户名"><br>
+            密码：<input type="password" id="reg-password" placeholder="输入密码"><br>
+            <button onclick="register()">注册</button>
+            <div id="reg-result"></div>
+        </div>
+
+        <!-- 登录面板 -->
+        <div id="login" class="tab-content">
+            <h3>登录</h3>
+            用户名：<input type="text" id="login-username" placeholder="输入用户名"><br>
+            密码：<input type="password" id="login-password" placeholder="输入密码"><br>
+            <button onclick="login()">登录</button>
+            <div id="login-result"></div>
+        </div>
+
+        <!-- 加好友面板 -->
+        <div id="add-friend" class="tab-content">
+            <h3>加好友</h3>
+            好友用户名：<input type="text" id="friend-username" placeholder="输入好友用户名"><br>
+            <button onclick="addFriend()">添加好友</button>
+            <div id="add-friend-result"></div>
+        </div>
+
+        <!-- 聊天面板 -->
+        <div id="chat" class="tab-content">
+            <h3>聊天</h3>
+            好友用户名：<input type="text" id="chat-friend" placeholder="输入好友用户名"><br>
+            <div id="chat-box"></div>
+            消息：<input type="text" id="msg-content" placeholder="输入消息">
+            <button onclick="sendMsg()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        // 登录后的token和当前用户
+        let token = "";
+        let currentUser = "";
+        let ws = null;
+
+        const BASE_URL = "http://127.0.0.1:8080";
+
+        // 切换标签页
+        function openTab(tabName) {
+            const contents = document.getElementsByClassName("tab-content");
+            for (let c of contents) c.classList.remove("active");
+            document.getElementById(tabName).classList.add("active");
+        }
+
+        // 1. 注册接口
+        async function register() {
+            const username = document.getElementById("reg-username").value;
+            const password = document.getElementById("reg-password").value;
+            try {
+                const res = await fetch(`${BASE_URL}/api/user/register`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await res.json();
+                document.getElementById("reg-result").innerText = JSON.stringify(data);
+            } catch (e) {
+                document.getElementById("reg-result").innerText = "注册失败：" + e.message;
+            }
+        }
+
+        // 2. 登录接口（获取JWT token）
+        async function login() {
+            const username = document.getElementById("login-username").value;
+            const password = document.getElementById("login-password").value;
+            try {
+                const res = await fetch(`${BASE_URL}/api/user/login`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await res.json();
+                if (data.code === 200) {
+                    token = data.data.token;
+                    currentUser = username;
+                    // 登录成功后自动连接WebSocket
+                    connectWS();
+                }
+                document.getElementById("login-result").innerText = JSON.stringify(data);
+            } catch (e) {
+                document.getElementById("login-result").innerText = "登录失败：" + e.message;
+            }
+        }
+
+        // 3. 加好友接口
+        async function addFriend() {
+            if (!token) {
+                document.getElementById("add-friend-result").innerText = "请先登录！";
+                return;
+            }
+            const friendUsername = document.getElementById("friend-username").value;
+            try {
+                const res = await fetch(`${BASE_URL}/api/friend/add`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({friend_username: friendUsername})
+                });
+                const data = await res.json();
+                document.getElementById("add-friend-result").innerText = JSON.stringify(data);
+            } catch (e) {
+                document.getElementById("add-friend-result").innerText = "加好友失败：" + e.message;
+            }
+        }
+
+        // 4. 连接WebSocket
+        function connectWS() {
+            // TODO: 这里需要替换成实际的WebSocket地址
+            const wsUrl = `ws://127.0.0.1:8080/api/ws?token=${token}`;
+            ws = new WebSocket(wsUrl);
+
+            // 连接成功
+            ws.onopen = () => {
+                console.log("WebSocket连接成功");
+                // 心跳检测（每30秒发一次）
+                setInterval(() => ws.send(JSON.stringify({type: "ping"})), 30000);
+            };
+
+            // 接收消息
+            ws.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                if (msg.type === "msg") {
+                    // 显示聊天消息
+                    const chatBox = document.getElementById("chat-box");
+                    chatBox.innerHTML += `<div>${msg.from}: ${msg.content}</div>`;
+                    // 滚动到底部
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            };
+
+            // 连接关闭
+            ws.onclose = () => {
+                console.log("WebSocket连接关闭，尝试重连...");
+                setTimeout(connectWS, 3000); // 3秒后重连
+            };
+        }
+
+        // 5. 发送聊天消息
+        function sendMsg() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert("WebSocket未连接，请先登录！");
+                return;
+            }
+            const friend = document.getElementById("chat-friend").value;
+            const content = document.getElementById("msg-content").value;
+            if (!friend || !content) return;
+
+            // 发送消息
+            ws.send(JSON.stringify({
+                type: "msg",
+                to: friend,
+                from: currentUser,
+                content: content
+            }));
+
+            // 自己的消息显示在聊天框
+            const chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML += `<div>我: ${content}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // 清空输入框
+            document.getElementById("msg-content").value = "";
+        }
+    </script>
+</body>
+</html>
