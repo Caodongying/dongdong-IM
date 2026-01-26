@@ -8,7 +8,7 @@ import (
 )
 
 type UserService struct{
-	server pb.UnimplementedUserServiceServer
+	pb.UnimplementedUserServiceServer
 }
 
 func (s *UserService) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
