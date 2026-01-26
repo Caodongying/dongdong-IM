@@ -1,28 +1,7 @@
-server:
-  http_port: "8080"
-  grpc_port: "50051"
-  ws_port: "8081"
-
-redis:
-  addr: "127.0.0.1:6379"
-  pass: ""
-  db: 0
-  pool_size: 100
-  expire: 3600
-
-mysql:
-  dsn: "root:123456@tcp(127.0.0.1:3306)/im?charset=utf8mb4&parseTime=True&loc=Local"
-  max_open_conns: 100
-  max_idle_conns: 20
-  conn_max_lifetime: 3600
-
-jwt:
-  secret: "dongdong-im-secret-key-2026" # TODO: replace
-  expire: 86400 # 24 hours
-
 logger:
-  level: "debug"
-  filename: "logs/im.log"
-  max_size: 100 # MB
-  max_backup: 10
+  level: "info"
+  filename: "logs/dongdong-im.log"
+  max_size: 100
+  max_backup: 3
   max_age: 7
+  compress: true
