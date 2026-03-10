@@ -79,6 +79,7 @@ func Init() {
 		panic("无法解析config配置: " + err.Error())
 	}
 	// 开启热更新
+	// 生效前提：业务代码需实时从 Viper.GetConfig() 获取配置，而非启动时缓存，否则热重载的配置无法生效。
 	v.WatchConfig()
 	v.OnConfigChange(func(e fs.Event) {
 		zap.L().Info("重新加载配置文件...", zap.String("file", e.Name))
