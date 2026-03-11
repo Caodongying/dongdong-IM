@@ -1,11 +1,14 @@
+// Zap日志，含 traceID + 文件切割 + 结构化
+
 package logger
 
 import (
+	"os"
+
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"fmt"
-	"os"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
