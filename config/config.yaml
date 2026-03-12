@@ -7,7 +7,7 @@ logger:
   compress: true
 
 mysql:
-  dsn: "root:123456@tcp(127.0.0.1:3306)/im?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:123456@tcp(127.0.0.1:3306)/im?charset=utf8mb4&parseTime=True&loc=Local" # 用户名:密码@连接方式(地址:端口)/数据库名
   max_open_conns: 50 # 最大打开连接数（高并发调整）
   max_idle_conns: 20 # 最大空闲连接数
   conn_max_lifetime: 3600 # 连接最大生命周期(秒)

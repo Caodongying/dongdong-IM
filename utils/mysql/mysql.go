@@ -1,10 +1,14 @@
 package mysql
 
 import (
+	"context"
 	"time"
+	"regexp"
 
 	"github.com/Caodongying/dongdong-IM/utils/config"
-	"github.com/Caodongying/dongdong-IM/utils/logger"
+	customLogger "github.com/Caodongying/dongdong-IM/utils/logger"
+	gormLogger "gorm.io/gorm/logger"
+
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"go.uber.org/zap"
@@ -12,53 +16,102 @@ import (
 
 var DB *gorm.DB
 
-// 初始化MySQL
+// ZapGormLogger - 适配GORM的logger.Writer接口的Zap日志包装器
+type ZapGormLogger struct {
+	ZapLogger *zap.SugaredLogger
+}
+
+// Printf是gorm.io/gorm/logger.Writer接口的核心方法
+// GORM会调用这个方法输出日志，因此需要将其转发到Zap
+func (z *ZapGormLogger) Printf(format string, v ...interface{}) {
+	z.ZapLogger.Infof(format, v...)
+}
+
+
 func Init() {
+	if customLogger.Sugar == nil {
+		panic("logger未初始化，请先调用logger.Init()")
+	}
+
 	cfg := config.Viper.GetConfig().MySQL
-	// Gorm日志配置（对接Zap）
-	gormLogger := logger.New(
-		logger.Sugar,
-		logger.Config{
-			SlowThreshold:             time.Second, // 慢查询阈值
-			LogLevel:                  logger.Info, // 日志级别
-			IgnoreRecordNotFoundError: true,        // 忽略记录不存在错误
-			Colorful:                  false,       // 非彩色输出
+	// 验证DSN是否为空
+	if cfg.DSN == "" {
+		customLogger.Sugar.Panic("MySQL DSN配置为空")
+	}
+
+	// 1. 创建Zap到GORM的日志适配器
+	zapWriter := &ZapGormLogger{
+		ZapLogger: customLogger.Sugar,
+	}
+
+	// 2. 配置GORM日志
+	dbLogger := gormLogger.New(
+		zapWriter,
+		gormLogger.Config{
+			SlowThreshold:             time.Second, // 慢查询阈值（超过1秒记录慢查询）
+			LogLevel:                  gormLogger.Info, // 日志级别：Info会输出所有SQL
+			IgnoreRecordNotFoundError: true,        // 忽略"记录不存在"的错误日志
+			Colorful:                  false,       // 关闭彩色输出（JSON日志不需要）
 		},
 	)
-	// 连接MySQL
+
+	// 3. 连接MySQL
+	customLogger.Sugar.Debug("开始连接MySQL", zap.String("dsn", maskDSN(cfg.DSN))) // 脱敏输出DSN
 	db, err := gorm.Open(mysql.Open(cfg.DSN), &gorm.Config{
-		Logger: gormLogger,
+		Logger: dbLogger,
 	})
 	if err != nil {
-		logger.Sugar.Panic("mysql connect failed", zap.Error(err))
+		customLogger.Sugar.Panic("开始连接MySQL", zap.Error(err))
 	}
-	// 获取底层sql.DB，配置连接池
+
+	// 4. 配置连接池
 	sqlDB, err := db.DB()
 	if err != nil {
-		logger.Sugar.Panic("get mysql sql.DB failed", zap.Error(err))
+		customLogger.Sugar.Panic("获取sql.DB实例失败", zap.Error(err))
 	}
+	// 设置连接池参数
 	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
 	sqlDB.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Second)
 	sqlDB.SetConnMaxIdleTime(time.Duration(cfg.ConnMaxIdleTime) * time.Second)
-	// 测试连接
-	if err := sqlDB.Ping(); err != nil {
-		logger.Sugar.Panic("mysql ping failed", zap.Error(err))
+
+	// 5. 测试连接（带上下文）
+	if err := sqlDB.PingContext(context.Background()); err != nil {
+		customLogger.Sugar.Panic("mysql ping失败", zap.Error(err))
 	}
+
 	DB = db
-	logger.Sugar.Info("mysql init success", zap.String("dsn", cfg.DSN))
+	customLogger.Sugar.Info("mysql初始化成功", zap.String("dsn", maskDSN(cfg.DSN)))
 }
 
 // Close 优雅关闭MySQL连接
 func Close() {
+	if DB == nil {
+		customLogger.Sugar.Warn("mysql DB实例为空，跳过关闭")
+		return
+	}
+
 	sqlDB, err := DB.DB()
 	if err != nil {
-		logger.Sugar.Error("get mysql sql.DB failed when close", zap.Error(err))
+		customLogger.Sugar.Error("获取sql.DB实例失败（关闭时）", zap.Error(err))
 		return
 	}
+
 	if err := sqlDB.Close(); err != nil {
-		logger.Sugar.Error("mysql close failed", zap.Error(err))
+		customLogger.Sugar.Error("mysql关闭失败", zap.Error(err))
 		return
 	}
-	logger.Sugar.Info("mysql closed success")
+
+	customLogger.Sugar.Info("mysql连接已优雅关闭")
+}
+
+// maskDSN 脱敏DSN，避免日志中泄露密码
+func maskDSN(dsn string) string {
+	// 替换DSN中的密码部分为***
+	// 例如：root:123456@tcp(127.0.0.1:3306)/test → root:***@tcp(127.0.0.1:3306)/test
+	// 匹配 : 到 @ 之间的所有字符（密码部分）
+	reg := regexp.MustCompile(`(?<=:).+?(?=@)`)
+
+	return reg.ReplaceAllString(dsn, "***")
+
 }
