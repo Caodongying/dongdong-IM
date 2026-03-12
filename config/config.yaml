@@ -5,3 +5,43 @@ logger:
   max_backup: 3
   max_age: 7
   compress: true
+
+mysql:
+  dsn: "root:123456@tcp(127.0.0.1:3306)/im?charset=utf8mb4&parseTime=True&loc=Local" # 用户名:密码@连接方式(地址:端口)/数据库名
+  max_open_conns: 50 # 最大打开连接数（高并发调整）
+  max_idle_conns: 20 # 最大空闲连接数
+  conn_max_lifetime: 3600 # 连接最大生命周期(秒)
+  conn_max_idle_time: 1800 # 连接最大空闲时间(秒)
+
+server:
+  http_port: "8080"
+  grpc_port: "50051"
+  mode: "release" # debug/release/test
+  shutdown_timeout: 5 # 优雅关闭超时时间(秒)
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+  db: 0
+  pool_size: 100 # 连接池大小
+  min_idle_conns: 20 # 最小空闲连接数
+  conn_max_lifetime: 3600 # 连接最大生命周期(秒)
+  lock_expire: 3 # 分布式锁默认过期时间(秒)
+  lock_renew: 1 # 分布式锁续期时间(秒)
+
+jwt:
+  secret: "dongdong-im-jwt-secret-2026"
+  expire: 720 # 过期时间(分钟)
+  issuer: "dongdong-im"
+
+# 协程池配置
+pool:
+  core_size: 50 # 核心协程数
+  max_size: 200 # 最大协程数
+  queue_size: 1000 # 任务队列大小（池满则返回错误）
+  idle_timeout: 60 # 空闲协程超时时间(秒)
+
+# HTTP限流配置
+limit:
+  rate: 1000 # 每秒最大请求数
+  burst: 2000 # 突发请求数

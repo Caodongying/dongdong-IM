@@ -8,3 +8,5 @@
    - 下载包：go get github.com/googleapis/googleapis
    - 查看下载到哪里了：go list -m -f '{{.Path}} => {{.Dir}}' github.com/googleapis/googleapis
    - 修改proto文件里的protoc command，加上-I，与包寻址有关
+
+4. zap和viper不必细究，使用方案参照文档和一些教程就ok
