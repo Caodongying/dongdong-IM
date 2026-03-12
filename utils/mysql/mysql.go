@@ -110,7 +110,7 @@ func maskDSN(dsn string) string {
 	// 替换DSN中的密码部分为***
 	// 例如：root:123456@tcp(127.0.0.1:3306)/test → root:***@tcp(127.0.0.1:3306)/test
 	// 匹配 : 到 @ 之间的所有字符（密码部分）
-	reg := regexp.MustCompile(`(?<=:).+?(?=@)`)
+	reg := regexp.MustCompile(`(:).+?(@)`)
 
 	return reg.ReplaceAllString(dsn, "***")
 
