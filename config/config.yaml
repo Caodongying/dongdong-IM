@@ -30,9 +30,9 @@ redis:
   lock_renew: 1 # 分布式锁续期时间(秒)
 
 jwt:
-  secret: "dongdong-im-jwt-secret-2026"
-  expire: 720 # 过期时间(分钟)
-  issuer: "dongdong-im"
+  secret: "dongdong-im-jwt-secret-2026" # 密钥
+  expire: 180 # 过期时间(分钟)
+  issuer: "dongdong-im" # 签发者
 
 # 协程池配置
 pool:
