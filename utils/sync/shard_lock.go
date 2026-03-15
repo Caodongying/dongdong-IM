@@ -14,6 +14,8 @@ type ShardLock struct {
 }
 
 // 全局用户分片锁（用户模块专用）
+// 这是package包级别的变量声明。其初始化发生在程序启动时、包被首次导入的时候，而且只执行一次
+// 整个程序运行期间，UserShardLock 只会被创建一次
 var UserShardLock = NewShardLock(32) // 32分片，兼顾性能和竞争
 
 func NewShardLock(num int) *ShardLock {
@@ -24,6 +26,11 @@ func NewShardLock(num int) *ShardLock {
 	for i := 0; i < num; i++ {
 		shards[i] = &sync.Mutex{} // 为每个分片初始化一把独立的互斥锁
 	}
+
+	// 必须返回指针，因为如果返回值类型ShardLock{}
+	// 每次调用就会复制整个shards切片，这样每一次调用UserShardLock.Lock("user1")
+	// 都会拷贝UserShardLock，这样锁就不冲突了
+	// Go里，值类型的方法调用会隐式拷贝整个值
 	return &ShardLock{
 		shards: shards,
 		num:    num,
