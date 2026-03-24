@@ -2,10 +2,7 @@ package user
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
-	"uuid"
 
 	"github.com/Caodongying/dongdong-IM/model"
 	"github.com/Caodongying/dongdong-IM/proto/user"
