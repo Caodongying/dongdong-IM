@@ -17,7 +17,7 @@ import (
 
 
 var (
-	GlobalPool1 *GoroutinePool
+	GlobalPool *GoroutinePool
 
 	// 错误信息是固定的用 errors.New，需要带变量用 fmt.Errorf
 	ErrPoolFull    = errors.New("goroutine pool is full")
@@ -273,7 +273,7 @@ func (p *GoroutinePool) Close(waitTime time.Duration) error {
 		return ErrPoolStopped
 	}
 
-	logger.Sugar.Info("closing goroutine pool, draining remaining tasks...")
+	logger.Sugar.Info("关闭协程池, 处理剩余task...")
 
 	// 关闭 taskQueue channel
 	// 所有 worker（core 和 temp）都在 range/select 这个 channel，
@@ -291,15 +291,17 @@ func (p *GoroutinePool) Close(waitTime time.Duration) error {
 		close(done)
 	}()
 
+	timer := time.NewTimer(waitTime)
+	defer timer.Stop()
 	select {
 	case <-done:
-		logger.Sugar.Info("goroutine pool closed gracefully",
+		logger.Sugar.Info("协程池已经优雅关闭",
 			zap.Int64("total_submitted", p.totalSubmitted.Load()),
 			zap.Int64("total_completed", p.totalCompleted.Load()),
 			zap.Int64("total_panic", p.totalPanic.Load()))
 		return nil
-	case <-time.After(waitTime):
-		logger.Sugar.Warn("goroutine pool close timeout, some workers may still be running",
+	case <-timer.C:
+		logger.Sugar.Warn("协程池超时，部分worker可能还在运行",
 			zap.Int32("remaining_workers", p.workerNum.Load()))
 		return errors.New("close pool timeout")
 	}
