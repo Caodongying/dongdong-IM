@@ -56,6 +56,16 @@ type Config struct {
 		Rate  int `mapstructure:"rate"`
 		Burst int `mapstructure:"burst"`
 	} `mapstructure:"limit"`
+	Snowflake struct {
+		MachineID int64 `mapstructure:"machine_id"`
+	} `mapstructure:"snowflake"`
+	WebSocket struct {
+		WriteWait      int `mapstructure:"write_wait"`
+		PongWait       int `mapstructure:"pong_wait"`
+		PingPeriod     int `mapstructure:"ping_period"`
+		MaxMessageSize int `mapstructure:"max_message_size"`
+		SendBufferSize int `mapstructure:"send_buffer_size"`
+	} `mapstructure:"websocket"`
 }
 
 type configManager struct {
