@@ -45,3 +45,15 @@ pool:
 limit:
   rate: 1000 # 每秒最大请求数
   burst: 2000 # 突发请求数
+
+# Snowflake ID 生成器配置
+snowflake:
+  machine_id: 1 # 机器ID（0-1023，部署多节点时每个节点不同）
+
+# WebSocket 配置
+websocket:
+  write_wait: 10        # 写超时(秒)
+  pong_wait: 60         # 等待 Pong 超时(秒)
+  ping_period: 54       # 发送 Ping 间隔(秒)，必须小于 pong_wait
+  max_message_size: 4096 # 最大消息体大小(字节)
+  send_buffer_size: 256  # 每个连接的发送缓冲区大小
